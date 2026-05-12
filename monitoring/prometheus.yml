@@ -36,7 +36,7 @@ scrape_configs:
   # The backend exposes metrics at GET /metrics
   - job_name: 'smartcal-backend'
     static_configs:
-      - targets: ['backend:5000']    # Docker service name: port
+      - targets: ['localhost:5000']   # Host-based demo: backend runs on the Windows machine
         labels:
           service: 'smartcal-api'
           environment: 'demo'

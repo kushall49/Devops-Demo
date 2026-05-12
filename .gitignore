@@ -17,4 +17,5 @@ frontend/.next/
 backend/node_modules/
 frontend/node_modules/
 monitoring/node_modules/
+data/
 .git/index.lock
