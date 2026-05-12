@@ -1,0 +1,67 @@
+# ============================================================
+# GitHub Actions Workflow for Smart Calendar & Task Manager
+#
+# This workflow:
+#  - Runs on every push or pull request
+#  - Installs dependencies for frontend & backend
+#  - Builds both apps
+#  - Runs backend tests
+#  - (Optional) Deploys app (add your deployment steps)
+# ============================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand('ping')'" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      MONGO_URI: mongodb://localhost:27017/smartcalendar
+      JWT_SECRET: testsecretkey
+      NODE_ENV: test
+      PORT: 5000
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build || echo "No build step for backend"
+
+      - name: Run backend tests
+        working-directory: ./backend
+        run: npm test
+
+      # - name: Deploy (add your deployment steps here)
+      #   run: echo "Deploy step goes here"

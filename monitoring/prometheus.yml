@@ -1,0 +1,66 @@
+# ============================================================
+# PROMETHEUS CONFIGURATION FILE
+#
+# This file tells Prometheus:
+#  1. How often to scrape metrics
+#  2. Which targets (URLs) to scrape
+#
+# FLOW:
+#  Prometheus reads this → Sends HTTP GET to /metrics → Stores data
+#  Grafana queries Prometheus → Shows charts
+# ============================================================
+
+# Global settings apply to all scrape jobs
+global:
+  scrape_interval: 5s          # How often to collect metrics (every 5 seconds)
+  evaluation_interval: 5s      # How often to evaluate alerting rules
+  scrape_timeout: 4s           # Timeout for each scrape request
+
+# ============================================================
+# SCRAPE CONFIGURATIONS
+# Each 'job' defines a group of targets to monitor
+# ============================================================
+scrape_configs:
+
+  # ---- Job 1: Monitor Prometheus itself ----
+  # Prometheus can track its own performance!
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']  # Prometheus scrapes itself
+        labels:
+          service: 'prometheus'
+          environment: 'demo'
+
+  # ---- Job 2: Monitor SmartCal Backend API ----
+  # This is our main target - the Node.js/Express backend
+  # The backend exposes metrics at GET /metrics
+  - job_name: 'smartcal-backend'
+    static_configs:
+      - targets: ['backend:5000']    # Docker service name: port
+        labels:
+          service: 'smartcal-api'
+          environment: 'demo'
+          team: 'devops-demo'
+    # Which URL path has the metrics
+    metrics_path: '/metrics'
+    # Use HTTP (not HTTPS) since this is local demo
+    scheme: 'http'
+    # Labels added to ALL metrics from this job
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+# ============================================================
+# ALERTING RULES (optional - for advanced demo)
+# ============================================================
+# rule_files:
+#   - "alerts.yml"
+#
+# Example alert: Notify when error rate > 5%
+# - alert: HighErrorRate
+#   expr: rate(smartcal_http_requests_failed_total[5m]) > 0.05
+#   for: 1m
+#   labels:
+#     severity: warning
+#   annotations:
+#     summary: "High error rate detected"

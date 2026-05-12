@@ -1,0 +1,147 @@
+# ============================================================
+# DOCKER COMPOSE - Orchestrates all services
+#
+# SERVICES:
+#   mongodb   - Database (port 27017)
+#   backend   - Node.js API (port 5000)
+#   frontend  - Next.js app (port 3000)
+#   prometheus - Metrics collector (port 9090)
+#   grafana   - Metrics visualizer (port 3001)
+#
+# HOW TO START:
+#   docker-compose up --build
+#
+# HOW TO STOP:
+#   docker-compose down
+# ============================================================
+
+version: '3.8'
+
+services:
+
+  # ==================== MONGODB ====================
+  # Document database for storing users, events, tasks
+  mongodb:
+    image: mongo:7.0          # Official MongoDB image
+    container_name: smartcal-mongodb
+    restart: unless-stopped   # Auto-restart if it crashes
+    ports:
+      - "27017:27017"         # host:container port mapping
+    volumes:
+      - mongodb_data:/data/db  # Persist data between restarts
+    environment:
+      MONGO_INITDB_DATABASE: smartcalendar
+    networks:
+      - smartcal-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== BACKEND ====================
+  # Node.js + Express API server
+  backend:
+    build:
+      context: ./backend       # Build from backend directory
+      dockerfile: Dockerfile
+    container_name: smartcal-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # MongoDB connection uses service name 'mongodb' (not localhost!)
+      MONGO_URI: mongodb://mongodb:27017/smartcalendar
+      JWT_SECRET: supersecretjwtkey_change_in_production_2024
+      PORT: 5000
+      NODE_ENV: production
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      mongodb:
+        condition: service_healthy  # Wait for MongoDB to be ready
+    networks:
+      - smartcal-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/api/health/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==================== FRONTEND ====================
+  # Next.js React application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Tell the frontend where to find the backend API
+        NEXT_PUBLIC_API_URL: http://localhost:5000
+    container_name: smartcal-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - smartcal-network
+
+  # ==================== PROMETHEUS ====================
+  # Metrics collection and storage
+  # Scrapes the /metrics endpoint on the backend every 5 seconds
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: smartcal-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"           # Prometheus UI at http://localhost:9090
+    volumes:
+      # Mount our custom prometheus config file
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'      # Allow config reload via API
+      - '--storage.tsdb.retention.time=15d'  # Keep 15 days of data
+    networks:
+      - smartcal-network
+
+  # ==================== GRAFANA ====================
+  # Beautiful dashboards for visualizing metrics from Prometheus
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: smartcal-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"           # Grafana UI at http://localhost:3001
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # Auto-provision the Prometheus data source
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      # Auto-provision our dashboard
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - smartcal-network
+
+# ==================== NETWORKS ====================
+# All containers communicate through this isolated network
+networks:
+  smartcal-network:
+    driver: bridge
+
+# ==================== VOLUMES ====================
+# Named volumes persist data when containers are stopped/removed
+volumes:
+  mongodb_data:
+  prometheus_data:
+  grafana_data:

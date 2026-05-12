@@ -1,0 +1,30 @@
+# ============================================================
+# GRAFANA DATASOURCE PROVISIONING
+#
+# This file automatically connects Grafana to Prometheus
+# when the container starts. No manual setup needed!
+#
+# Without this, you'd have to:
+#  1. Open Grafana UI
+#  2. Go to Configuration > Data Sources
+#  3. Add Prometheus manually
+#
+# With this file, Grafana connects automatically on boot!
+# ============================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus            # Name shown in Grafana UI
+    type: prometheus             # Data source type
+    access: proxy                # Grafana proxies requests to Prometheus
+    orgId: 1
+    # URL of Prometheus - uses Docker service name 'prometheus'
+    url: http://prometheus:9090
+    basicAuth: false
+    isDefault: true              # Make this the default data source
+    version: 1
+    editable: true               # Allow editing in UI
+    jsonData:
+      timeInterval: "5s"         # Match our scrape interval
+      httpMethod: POST

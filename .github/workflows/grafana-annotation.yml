@@ -1,0 +1,58 @@
+name: CI/CD — Grafana Annotation
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-annotate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies (frontend)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build --if-present
+
+      - name: Install dependencies (backend)
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build --if-present
+
+      - name: (Optional) Deploy
+        run: echo "Deploy step placeholder — add your deploy commands here"
+
+      - name: Post Grafana annotation
+        if: always()
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          if [ -z "$GRAFANA_URL" ] || [ -z "$GRAFANA_API_KEY" ]; then
+            echo "Skipping Grafana annotation: set GRAFANA_URL and GRAFANA_API_KEY secrets."
+            exit 0
+          fi
+          TIMEMS=$(date +%s)000
+          BODY=$(cat <<EOF
+{
+  "time": $TIMEMS,
+  "isRegion": false,
+  "tags": ["ci","deploy"],
+  "text": "Deployment $GITHUB_REPOSITORY $GITHUB_REF by $GITHUB_ACTOR (run $GITHUB_RUN_ID)"
+}
+EOF
+)
+          echo "$BODY" > /tmp/grafana-annotation.json
+          curl -s -X POST "$GRAFANA_URL/api/annotations" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $GRAFANA_API_KEY" \
+            -d @/tmp/grafana-annotation.json || true

@@ -1,0 +1,16 @@
+# ============================================================
+# GRAFANA DASHBOARD PROVISIONING
+# Tells Grafana where to find dashboard JSON files
+# ============================================================
+apiVersion: 1
+
+providers:
+  - name: 'SmartCal Dashboards'
+    orgId: 1
+    folder: 'SmartCal'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
