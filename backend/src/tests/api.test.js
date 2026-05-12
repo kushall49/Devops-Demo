@@ -26,8 +26,9 @@ let authToken = ''; // Store JWT token between tests
 // ============================================================
 
 beforeAll(async () => {
-  // Connect to a test database (separate from production)
+  // Switch the shared mongoose connection to a clean test database.
   const testDbUri = process.env.MONGO_URI_TEST || 'mongodb://localhost:27017/smartcalendar_test';
+  await mongoose.disconnect();
   await mongoose.connect(testDbUri);
 });
 
