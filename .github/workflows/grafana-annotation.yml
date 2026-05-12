@@ -44,15 +44,7 @@ jobs:
             exit 0
           fi
           TIMEMS=$(date +%s)000
-          BODY=$(cat <<EOF
-{
-  "time": $TIMEMS,
-  "isRegion": false,
-  "tags": ["ci","deploy"],
-  "text": "Deployment $GITHUB_REPOSITORY $GITHUB_REF by $GITHUB_ACTOR (run $GITHUB_RUN_ID)"
-}
-EOF
-)
+          BODY=$(printf '{"time": %s, "isRegion": false, "tags": ["ci","deploy"], "text": "Deployment %s %s by %s (run %s)"}' "$TIMEMS" "$GITHUB_REPOSITORY" "$GITHUB_REF" "$GITHUB_ACTOR" "$GITHUB_RUN_ID")
           echo "$BODY" > /tmp/grafana-annotation.json
           curl -s -X POST "$GRAFANA_URL/api/annotations" \
             -H "Content-Type: application/json" \

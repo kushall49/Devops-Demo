@@ -22,6 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      MONGO_URI: mongodb://localhost:27017/smartcalendar
+      JWT_SECRET: testsecretkey
+      NODE_ENV: test
+      PORT: 5000
+      NEXT_PUBLIC_API_URL: http://localhost:5000
     services:
       mongo:
         image: mongo:7.0
@@ -29,12 +34,6 @@ jobs:
           - 27017:27017
         options: >-
           --health-cmd "mongosh --quiet --eval \"db.adminCommand('ping')\"" --health-interval 10s --health-timeout 5s --health-retries 5 --health-start-period 20s
-    env:
-      MONGO_URI: mongodb://localhost:27017/smartcalendar
-      JWT_SECRET: testsecretkey
-      NODE_ENV: test
-      PORT: 5000
-      NEXT_PUBLIC_API_URL: http://localhost:5000
 
     steps:
       - name: Checkout code
